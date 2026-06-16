@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>صفحة الأدمن - QR Code</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background: #f0f2f5;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 36px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+      text-align: center;
+    }
+    h1 { font-size: 22px; color: #111; margin-bottom: 6px; }
+    .subtitle { font-size: 13px; color: #888; margin-bottom: 28px; }
+    #qr-container img { width: 260px; height: 260px; border-radius: 12px; border: 2px solid #e0e0e0; }
+    .status-msg {
+      margin-top: 20px;
+      padding: 14px;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+    }
+    .connected { background: #e6f9ee; color: #1a7a3f; }
+    .waiting { background: #fff8e1; color: #b07800; }
+    .steps {
+      margin-top: 24px;
+      text-align: right;
+      background: #f8f9fa;
+      border-radius: 10px;
+      padding: 16px;
+      font-size: 13px;
+      color: #555;
+      line-height: 2;
+    }
+    .steps b { color: #25D366; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>📱 ربط الواتساب</h1>
+  <div class="subtitle">صفحة المالك - امسح الكود لتفعيل الخدمة</div>
+
+  <div id="qr-container">
+    <div class="status-msg waiting">⏳ جاري تحميل QR Code...</div>
+  </div>
+
+  <div id="status-msg" class="status-msg waiting" style="display:none"></div>
+
+  <div class="steps">
+    <b>خطوات الربط:</b><br>
+    1️⃣ افتح الواتساب على تليفونك<br>
+    2️⃣ روح الإعدادات ← الأجهزة المرتبطة<br>
+    3️⃣ اضغط "ربط جهاز"<br>
+    4️⃣ امسح الـ QR Code اللي فوق
+  </div>
+</div>
+
+<script>
+  function loadQR() {
+    fetch('/api/status').then(r => r.json()).then(data => {
+      const container = document.getElementById('qr-container');
+      const statusMsg = document.getElementById('status-msg');
+
+      if (data.isReady) {
+        container.innerHTML = '<div style="font-size:64px;margin:16px 0">✅</div>';
+        statusMsg.style.display = 'block';
+        statusMsg.className = 'status-msg connected';
+        statusMsg.textContent = 'الواتساب متصل وشغال! الموظف يقدر يبعت دلوقتي.';
+      } else if (data.hasQR) {
+        fetch('/api/qr').then(r => r.json()).then(qrData => {
+          if (qrData.qr) {
+            container.innerHTML = '<img src="' + qrData.qr + '" alt="QR Code">';
+            statusMsg.style.display = 'block';
+            statusMsg.className = 'status-msg waiting';
+            statusMsg.textContent = '⏳ في انتظار المسح...';
+          }
+        });
+      } else {
+        container.innerHTML = '<div class="status-msg waiting">⏳ ' + data.statusMessage + '</div>';
+      }
+    });
+  }
+
+  loadQR();
+  setInterval(loadQR, 3000);
+</script>
+</body>
+</html>

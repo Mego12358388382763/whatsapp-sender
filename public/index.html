@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>إرسال رسائل واتساب</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background: #f0f2f5;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 36px;
+      width: 100%;
+      max-width: 480px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .logo-icon {
+      width: 48px; height: 48px;
+      background: #25D366;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px;
+    }
+    h1 { font-size: 22px; color: #111; }
+    .subtitle { font-size: 13px; color: #888; margin-top: 2px; }
+
+    .status-bar {
+      background: #f8f9fa;
+      border-radius: 10px;
+      padding: 12px 16px;
+      margin-bottom: 24px;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .dot.green { background: #25D366; }
+    .dot.red { background: #ff4444; }
+    .dot.yellow { background: #f0a500; animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    label { display: block; font-size: 13px; color: #555; margin-bottom: 6px; font-weight: 600; }
+    input, textarea {
+      width: 100%;
+      border: 1.5px solid #e0e0e0;
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 15px;
+      font-family: inherit;
+      transition: border 0.2s;
+      outline: none;
+      margin-bottom: 18px;
+    }
+    input:focus, textarea:focus { border-color: #25D366; }
+    textarea { resize: vertical; min-height: 110px; }
+
+    button {
+      width: 100%;
+      background: #25D366;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 14px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover { background: #1ebe5d; }
+    button:disabled { background: #aaa; cursor: not-allowed; }
+
+    .result {
+      margin-top: 16px;
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 14px;
+      display: none;
+    }
+    .result.success { background: #e6f9ee; color: #1a7a3f; border: 1px solid #b2dfc4; }
+    .result.error { background: #fdecea; color: #c0392b; border: 1px solid #f5c6c0; }
+
+    /* Login screen */
+    #login-screen { display: block; }
+    #send-screen { display: none; }
+    .login-hint { font-size: 12px; color: #aaa; text-align: center; margin-top: 12px; }
+  </style>
+</head>
+<body>
+
+<!-- شاشة الدخول -->
+<div class="card" id="login-screen">
+  <div class="logo">
+    <div class="logo-icon">💬</div>
+    <div>
+      <h1>بوابة الإرسال</h1>
+      <div class="subtitle">سجّل دخولك للمتابعة</div>
+    </div>
+  </div>
+  <label>كلمة السر</label>
+  <input type="password" id="password-input" placeholder="ادخل كلمة السر" onkeydown="if(event.key==='Enter') doLogin()">
+  <button onclick="doLogin()">دخول</button>
+  <div class="result" id="login-result"></div>
+</div>
+
+<!-- شاشة الإرسال -->
+<div class="card" id="send-screen">
+  <div class="logo">
+    <div class="logo-icon">💬</div>
+    <div>
+      <h1>إرسال رسالة واتساب</h1>
+      <div class="subtitle">أرسل للعملاء بسهولة</div>
+    </div>
+  </div>
+
+  <div class="status-bar" id="status-bar">
+    <div class="dot yellow" id="status-dot"></div>
+    <span id="status-text">جاري التحقق من الاتصال...</span>
+  </div>
+
+  <label>رقم العميل (مع كود الدولة أو بدونه)</label>
+  <input type="tel" id="phone" placeholder="مثال: 01012345678 أو 201012345678">
+
+  <label>الرسالة</label>
+  <textarea id="message" placeholder="اكتب الرسالة هنا..."></textarea>
+
+  <button id="send-btn" onclick="sendMessage()" disabled>جاري الاتصال...</button>
+  <div class="result" id="send-result"></div>
+</div>
+
+<script>
+  let savedPassword = '';
+
+  function doLogin() {
+    const pw = document.getElementById('password-input').value;
+    fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pw })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        savedPassword = pw;
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('send-screen').style.display = 'block';
+        checkStatus();
+        setInterval(checkStatus, 5000);
+      } else {
+        const el = document.getElementById('login-result');
+        el.className = 'result error';
+        el.style.display = 'block';
+        el.textContent = '❌ ' + data.message;
+      }
+    });
+  }
+
+  function checkStatus() {
+    fetch('/api/status')
+    .then(r => r.json())
+    .then(data => {
+      const dot = document.getElementById('status-dot');
+      const txt = document.getElementById('status-text');
+      const btn = document.getElementById('send-btn');
+      txt.textContent = data.statusMessage;
+      if (data.isReady) {
+        dot.className = 'dot green';
+        btn.disabled = false;
+        btn.textContent = 'إرسال الرسالة ✉️';
+      } else {
+        dot.className = 'dot ' + (data.hasQR ? 'yellow' : 'red');
+        btn.disabled = true;
+        btn.textContent = 'في انتظار الاتصال...';
+      }
+    });
+  }
+
+  function sendMessage() {
+    const phone = document.getElementById('phone').value.trim();
+    const message = document.getElementById('message').value.trim();
+    const resultEl = document.getElementById('send-result');
+    const btn = document.getElementById('send-btn');
+
+    if (!phone || !message) {
+      resultEl.className = 'result error';
+      resultEl.style.display = 'block';
+      resultEl.textContent = '⚠️ من فضلك ادخل الرقم والرسالة';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'جاري الإرسال...';
+    resultEl.style.display = 'none';
+
+    fetch('/api/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: savedPassword, phone, message })
+    })
+    .then(r => r.json())
+    .then(data => {
+      resultEl.className = 'result ' + (data.success ? 'success' : 'error');
+      resultEl.style.display = 'block';
+      resultEl.textContent = data.message;
+      if (data.success) {
+        document.getElementById('phone').value = '';
+        document.getElementById('message').value = '';
+      }
+      btn.disabled = false;
+      btn.textContent = 'إرسال الرسالة ✉️';
+    });
+  }
+</script>
+</body>
+</html>
