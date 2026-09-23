@@ -50,7 +50,7 @@ def store_posts(
 ) -> dict:
     stats = {"posts_new": 0, "posts_updated": 0, "comments_new": 0, "comments_duplicate": 0, "comments_empty": 0}
     for rp in raw_posts:
-        com = _community(s, rp, country, city, category)
+        com = _community(s, rp, rp.community_country or country, rp.community_city or city, category)
         post = s.scalar(select(Post).where(Post.platform == rp.platform, Post.url == rp.url))
         if post is None:
             post = Post(community_id=com.id, platform=rp.platform, url=rp.url, ingestion_run_id=run.id)

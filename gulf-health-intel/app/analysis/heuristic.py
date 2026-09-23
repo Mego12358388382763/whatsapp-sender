@@ -71,7 +71,10 @@ class HeuristicResult:
     @property
     def needs_llm(self) -> bool:
         """Obvious noise is settled here and never sent to the (paid) LLM."""
-        return not self.is_spam and (bool(self.topics) or self.is_question)
+        if self.is_spam:
+            return False
+        return bool(self.topics) or self.is_question or self.intent in {
+            "sharing_experience", "did_not_work", "asking_for_help", "looking_for_practitioner"}
 
 
 def _is_question(norm: str) -> bool:
@@ -143,8 +146,9 @@ def analyze(text: str, like_count: int | None = None) -> HeuristicResult:
         intent, conf = "looking_for_information", 0.75
     elif res.is_question and (has_topic or len(norm.split()) >= 4):
         intent, conf = "asking_question", 0.75 if has_topic else 0.55
-    elif hits["sharing_experience"] and has_topic:
-        intent, conf = "sharing_experience", 0.75
+    elif hits["sharing_experience"] and (has_topic or len(norm.split()) >= 4):
+        # without a known topic this may be a new theme: keep it (low confidence) for discovery
+        intent, conf = "sharing_experience", 0.75 if has_topic else 0.45
     elif strong:
         intent, conf = "sharing_experience", 0.55
     elif hits["general_conversation"] or has_topic or len(norm.split()) <= 3:

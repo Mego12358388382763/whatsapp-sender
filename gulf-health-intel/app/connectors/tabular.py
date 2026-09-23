@@ -23,6 +23,8 @@ from .urls import community_from_post_url, detect_platform
 # canonical field -> aliases (checked case-insensitively, dotted paths allowed)
 ALIASES: dict[str, list[str]] = {
     "platform": ["platform", "source", "network"],
+    "country": ["country", "country_code", "community_country"],
+    "city": ["city", "community_city"],
     "community_name": ["community_name", "community", "page_name", "page", "channel_title",
                        "channelTitle", "subreddit", "group_name", "account_name", "pageName"],
     "community_url": ["community_url", "page_url", "channel_url", "account_url", "pageUrl",
@@ -79,6 +81,21 @@ def _bool(v: Any) -> bool:
     return str(v).strip().lower() not in ("", "0", "false", "no", "n", "none", "null")
 
 
+_COUNTRY_NAMES = {
+    "saudi arabia": "SA", "saudi": "SA", "ksa": "SA", "uae": "AE", "united arab emirates": "AE",
+    "emirates": "AE", "kuwait": "KW", "qatar": "QA", "bahrain": "BH", "oman": "OM",
+}
+
+
+def _country(v: Any) -> str | None:
+    if not v:
+        return None
+    s = str(v).strip()
+    if len(s) == 2:
+        return s.upper()
+    return _COUNTRY_NAMES.get(s.lower())
+
+
 def records_to_posts(
     records: Iterable[dict],
     default_platform: str | None = None,
@@ -119,6 +136,8 @@ def records_to_posts(
             comment_count=to_int(resolve(rec, "post_comments", mapping)),
             share_count=to_int(resolve(rec, "post_shares", mapping)),
             view_count=to_int(resolve(rec, "post_views", mapping)),
+            community_country=_country(resolve(rec, "country", mapping)),
+            community_city=resolve(rec, "city", mapping),
         )
         posts[url] = p
         return p

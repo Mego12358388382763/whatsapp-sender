@@ -39,6 +39,8 @@ class RawPost:
     comment_count: int | None = None
     share_count: int | None = None
     view_count: int | None = None
+    community_country: str | None = None  # ISO-2, when the source row states it
+    community_city: str | None = None
     comments: list[RawComment] = field(default_factory=list)
 
 

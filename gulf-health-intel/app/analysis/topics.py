@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import re
 from collections import Counter, defaultdict
+from functools import lru_cache
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -47,12 +48,46 @@ def _ngrams(toks: list[str], n: int) -> list[str]:
     return [" ".join(toks[i : i + n]) for i in range(len(toks) - n + 1)]
 
 
+_GENERIC = set(
+    """
+    every after before since still really honestly tried try trying helped help normal thing things
+    time day days week weeks month months year years today night morning always never ever much many
+    good bad better worse best need want know think feel feeling people someone anyone something
+    anything everything nothing make made take took go going went come work working works start started
+    one two three first last new old long little lot lots way back right left well even again same other
+    please thanks thank video post page follow love great nice
+    السبب شي شيء كل بعد قبل صار يصير احس ابي ابغى اقدر وقت يوم ليله الحين زمان مره كثير واجد وايد
+    ناس احد حد اللي الي عشان لان لانه بس حتى برضو جربت نفعني فادني طبيعي الحل
+    """.split()
+)
+
+
+@lru_cache(maxsize=1)
+def _vocab_stop() -> frozenset[str]:
+    """Words that describe intent, questions or places, not themes."""
+    from ..search import CITY_TERMS, COUNTRY_TERMS
+    from ..text.lexicon import INTENT_KEYWORDS, QUESTION_WORDS_AR, QUESTION_WORDS_EN
+
+    words = set(_GENERIC) | QUESTION_WORDS_AR | QUESTION_WORDS_EN
+    for kws in INTENT_KEYWORDS.values():
+        for kw in kws:
+            words.update(tokens(kw))
+    for terms in COUNTRY_TERMS.values():
+        for t in terms:
+            words.update(tokens(t))
+    for _, terms in CITY_TERMS.values():
+        for t in terms:
+            words.update(tokens(t))
+    return frozenset(words)
+
+
 def _content_tokens(text: str) -> list[str]:
-    return [t for t in tokens(text) if t not in STOPWORDS and len(t) > 1 and not t.isdigit()]
+    stop = _vocab_stop()
+    return [t for t in tokens(text) if t not in STOPWORDS and t not in stop and len(t) > 2 and not t.isdigit()]
 
 
 def discover_topics(
-    s: Session, min_count: int = 5, min_posts: int = 2, min_relevance: int = 30, limit: int = 15
+    s: Session, min_count: int = 5, min_posts: int = 2, min_relevance: int = 10, limit: int = 15
 ) -> list[Topic]:
     """Mine recurring phrases not covered by existing topic keywords."""
     known = set()
@@ -60,17 +95,26 @@ def discover_topics(
         for kw in t.keywords or []:
             known.update(_content_tokens(kw))
 
-    rows = s.execute(
-        select(Comment.text, Comment.post_id, CommentAnalysis.id)
-        .join(CommentAnalysis, CommentAnalysis.comment_id == Comment.id)
-        .where((CommentAnalysis.relevance_score >= min_relevance) | (CommentAnalysis.is_question.is_(True)))
-    ).all()
+    # Mine comments that no seed topic covers but that still look like real
+    # discussion (questions, or statements with some substance).
+    seed_ids = set(s.scalars(select(Topic.id).where(Topic.is_seed.is_(True))))
+    covered = set(s.scalars(select(CommentTopic.comment_analysis_id).where(CommentTopic.topic_id.in_(seed_ids))))
+    rows = [
+        r for r in s.execute(
+            select(Comment.text, Comment.post_id, CommentAnalysis.id)
+            .join(CommentAnalysis, CommentAnalysis.comment_id == Comment.id)
+            .where(CommentAnalysis.intent != "not_relevant")
+            .where((CommentAnalysis.relevance_score >= min_relevance) | (CommentAnalysis.is_question.is_(True))
+                   | (CommentAnalysis.intent.in_(["sharing_experience", "worked", "did_not_work"])))
+        ).all()
+        if r[2] not in covered and len(r[0].split()) >= 3
+    ]
     counts: Counter[str] = Counter()
     posts: dict[str, set[int]] = defaultdict(set)
     members: dict[str, set[int]] = defaultdict(set)
     for text, post_id, analysis_id in rows:
         toks = _content_tokens(text)
-        grams = set(_ngrams(toks, 2)) | {t for t in toks if len(t) >= 5}
+        grams = set(_ngrams(toks, 2)) | {t for t in toks if len(t) >= 4}
         for g in grams:
             if all(w in known for w in g.split()):
                 continue
