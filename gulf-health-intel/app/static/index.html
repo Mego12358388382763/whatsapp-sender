@@ -26,6 +26,8 @@
   <button data-tab="comments">Comment explorer</button>
   <button data-tab="scorecards">Scorecards</button>
   <button data-tab="content">Content ideas</button>
+  <button data-tab="replies">Reply queue</button>
+  <button data-tab="leads">Leads</button>
   <button data-tab="search">Search</button>
   <button data-tab="ingest">Add data</button>
   <button data-tab="b2b">B2B partners</button>
@@ -90,6 +92,38 @@
     <div class="card"><h2>Content intelligence</h2>
       <div class="row"><label>Theme <select id="ci-topic"></select></label></div>
       <div id="content"></div></div>
+  </section>
+
+  <!-- REPLY QUEUE -->
+  <section id="tab-replies" class="tab">
+    <div class="card">
+      <div class="card-head"><h2>Reply queue</h2><span id="r-today" class="badge"></span></div>
+      <p class="muted small">Public questions worth answering in the thread, with suggested replies that link to your Scorecard.
+        <strong>Nothing is posted automatically.</strong> Pick or edit a reply, press <em>Copy &amp; open post</em>, paste it under the comment
+        yourself, then mark it as posted. Help first, vary your wording, and keep to about 30 replies a day.</p>
+      <div class="row wrap">
+        <label>Show <select id="r-status">
+          <option value="pending">To answer</option><option value="copied">Opened (not confirmed)</option>
+          <option value="posted">Posted</option><option value="skipped">Skipped</option></select></label>
+        <label>From the last <select id="r-days">
+          <option value="3">3 days</option><option value="7">7 days</option><option value="30" selected>30 days</option>
+          <option value="365">year</option></select></label>
+        <button id="r-refresh">Find new questions</button>
+        <span id="r-msg" class="small muted"></span>
+      </div>
+      <div id="replies"></div>
+    </div>
+  </section>
+
+  <!-- LEADS -->
+  <section id="tab-leads" class="tab">
+    <div class="card">
+      <h2>Scorecard leads (opt-in)</h2>
+      <p class="muted small">People who took a Scorecard and chose to share their WhatsApp number, with consent. They are not linked to any collected comment.</p>
+      <div class="row wrap small" id="sc-links"></div>
+      <div id="leads"></div>
+      <p class="small"><a href="/api/export/leads.csv">Export leads CSV</a></p>
+    </div>
   </section>
 
   <!-- SEARCH -->

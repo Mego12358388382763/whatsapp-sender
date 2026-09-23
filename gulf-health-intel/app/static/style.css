@@ -132,3 +132,16 @@ button:disabled { opacity: .5; cursor: wait; }
   .top, main { padding: 12px; }
   .bar-row { grid-template-columns: 110px 1fr; }
 }
+
+/* Reply queue */
+.rq { border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 12px; }
+.rq-comment { font-size: 15px; background: var(--surface-0); border-radius: 8px; padding: 10px 12px; margin: 8px 0; }
+.rq-meta { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; font-size: 12px; color: var(--text-secondary); }
+.rq-drafts { display: grid; gap: 6px; margin: 8px 0; }
+.rq-drafts label { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: var(--text-primary); cursor: pointer;
+  border: 1px solid var(--border); border-radius: 8px; padding: 8px; }
+.rq-drafts input { margin-top: 3px; }
+.rq textarea { width: 100%; min-height: 90px; }
+.rq-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+button.ghost { background: none; color: var(--text-secondary); border: 1px solid var(--border); font-weight: 500; }
+.warn { color: var(--warn); font-size: 12px; }

@@ -185,6 +185,124 @@ function renderContent() {
 }
 $("#ci-topic").addEventListener("change", renderContent);
 
+// ------------------------------------------------------------- reply queue
+state.replies = [];
+async function loadReplies() {
+  const data = await api(`/api/replies${qs({ status: $("#r-status").value })}`);
+  state.replies = data.items;
+  const over = data.today > data.daily_soft_limit;
+  $("#r-today").textContent = `${data.today} replies today`;
+  $("#r-today").style.color = over ? "var(--warn)" : "";
+  if (!data.items.length) {
+    $("#replies").innerHTML = empty($("#r-status").value === "pending"
+      ? "No questions waiting. Press “Find new questions” after adding or analysing data." : "Nothing here yet.");
+    return;
+  }
+  $("#replies").innerHTML = data.items.map((it) => `
+    <article class="rq" data-id="${it.id}">
+      <div class="rq-meta">
+        <span class="score" title="Relevance">${it.relevance}</span>
+        <span class="chip">${esc(it.topic || "")}</span><span>${esc(it.intent)}</span>
+        <span>${esc(it.platform)} · ${esc(it.community)}${it.country ? ` · ${esc(it.country)}` : ""}</span>
+        <span>${link(it.post_url, "view post")}</span>
+      </div>
+      <div class="rq-comment" dir="auto">${esc(it.comment)}</div>
+      ${it.status === "pending" ? `
+        <div class="small muted">Suggested replies (${esc(it.drafts_method)}), linking to the <strong>${esc(it.scorecard)}</strong> Scorecard:</div>
+        <div class="rq-drafts">${it.drafts.map((d, i) => `
+          <label><input type="radio" name="d-${it.id}" value="${i}" ${i === 0 ? "checked" : ""}><span dir="auto" style="white-space:pre-wrap">${esc(d)}</span></label>`).join("")}</div>
+        <textarea dir="auto" aria-label="Reply to post">${esc(it.drafts[0] || "")}</textarea>
+        <div class="rq-actions">
+          <button data-act="copy">Copy &amp; open post</button>
+          <button class="ghost" data-act="posted">Mark as posted</button>
+          <button class="ghost" data-act="redraft">New suggestions</button>
+          <button class="ghost" data-act="skipped">Skip</button>
+        </div>` : `
+        ${it.final_reply ? `<div class="small muted">Reply used:</div><div class="rq-comment" dir="auto" style="white-space:pre-wrap">${esc(it.final_reply)}</div>` : ""}
+        <div class="rq-actions">
+          ${it.status === "copied" ? '<button data-act="posted">Confirm posted</button>' : ""}
+          <button class="ghost" data-act="pending">Move back to queue</button>
+        </div>`}
+      <div class="warn" aria-live="polite"></div>
+    </article>`).join("");
+}
+
+$("#replies").addEventListener("change", (e) => {
+  if (e.target.type !== "radio") return;
+  const card = e.target.closest(".rq");
+  const it = state.replies.find((x) => String(x.id) === card.dataset.id);
+  card.querySelector("textarea").value = it.drafts[+e.target.value];
+});
+
+$("#replies").addEventListener("click", async (e) => {
+  const act = e.target.dataset.act;
+  if (!act) return;
+  const card = e.target.closest(".rq");
+  const id = card.dataset.id;
+  const it = state.replies.find((x) => String(x.id) === id);
+  const reply = card.querySelector("textarea")?.value;
+  if (act === "redraft") {
+    const r = await api(`/api/replies/${id}/redraft`, { method: "POST" });
+    it.drafts = r.drafts; it.drafts_method = r.method;
+    return loadReplies();
+  }
+  if (act === "copy") {
+    // Open the tab synchronously (before any await) so pop-up blockers allow it.
+    const win = window.open(safeUrl(it.open_url) || "about:blank", "_blank", "noopener");
+    try { await navigator.clipboard.writeText(reply || ""); } catch { /* clipboard unavailable: text stays in the box */ }
+    const r = await api(`/api/replies/${id}/status`, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "copied", reply }) });
+    card.querySelector(".warn").textContent = [
+      win ? "Reply copied. Paste it under the comment in the post that just opened, then press “Mark as posted”." :
+            "Reply copied. Open the post and paste it under the comment.", ...r.warnings].join(" ");
+    return;
+  }
+  const r = await api(`/api/replies/${id}/status`, { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status: act, reply: act === "posted" ? reply : undefined }) });
+  if (r.warnings.length) alert(r.warnings.join("\n"));
+  loadReplies();
+});
+$("#r-status").addEventListener("change", loadReplies);
+$("#r-refresh").addEventListener("click", (e) => withBusy(e.target, async () => {
+  const r = await api(`/api/replies/refresh?days=${$("#r-days").value}`, { method: "POST" });
+  $("#r-msg").textContent = `${r.added} new question(s) added.`;
+  loadReplies();
+}));
+
+// ------------------------------------------------------------------- leads
+const SCORECARD_KEYS = ["energy", "sleep", "stress", "digestive", "pain", "lifestyle", "health360"];
+async function loadLeads() {
+  $("#sc-links").innerHTML = "Your Scorecard pages: " + SCORECARD_KEYS.map((k) =>
+    `${link(`${META.public_base_url}/s/${k}?lang=ar`, k)} (<a href="/s/${k}?lang=en" target="_blank" rel="noopener">en</a>)`).join(" · ");
+  if (!META.leads_enabled) {
+    $("#leads").innerHTML = empty("Set ADMIN_PASSWORD (in .env) to protect the dashboard and view leads.");
+    return;
+  }
+  const d = await api("/api/leads");
+  $("#leads").innerHTML = `<p class="small muted">${fmt(d.completions)} Scorecards completed · ${fmt(d.leads.length)} opted in to contact</p>` + table([
+    { label: "Name", render: (l) => txt(l.name || "—") },
+    { label: "WhatsApp", render: (l) => `<span dir="ltr">${esc(l.whatsapp || "")}</span>` },
+    { label: "Scorecard", render: (l) => esc(l.scorecard) },
+    { label: "Score", num: true, render: (l) => `<span class="score">${l.total_score}</span>` },
+    { label: "Lowest areas", render: (l) => chips(Object.entries(l.areas).sort((a, b) => a[1] - b[1]).slice(0, 2).map(([k, v]) => `${k} ${v}`)) },
+    { label: "Came from", render: (l) => esc([l.source, l.campaign].filter(Boolean).join(" / ") || "direct") },
+    { label: "Status", render: (l) => `<select data-lead="${l.id}">${["new", "contacted", "converted", "closed"].map((s) =>
+        `<option ${s === l.status ? "selected" : ""}>${s}</option>`).join("")}</select>` },
+    { label: "Date", render: (l) => esc((l.created_at || "").slice(0, 10)) },
+    { label: "", render: (l) => `<button class="link" data-del-lead="${l.id}">delete</button>` },
+  ], d.leads);
+}
+$("#leads").addEventListener("change", async (e) => {
+  if (e.target.dataset.lead) await api(`/api/leads/${e.target.dataset.lead}/status`, { method: "POST",
+    headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: e.target.value }) });
+});
+$("#leads").addEventListener("click", async (e) => {
+  if (e.target.dataset.delLead && confirm("Delete this person's details and answers permanently?")) {
+    await api(`/api/leads/${e.target.dataset.delLead}`, { method: "DELETE" });
+    loadLeads();
+  }
+});
+
 // ------------------------------------------------------------------ search
 const EXAMPLES = ["fatigue Saudi Arabia", "sleep problems UAE", "burnout Riyadh", "gut health Dubai", "chronic pain Saudi"];
 $("#search-examples").innerHTML = EXAMPLES.map((e) => `<button class="link" data-q="${esc(e)}">${esc(e)}</button>`).join(" · ");
@@ -281,7 +399,7 @@ $("#b2b-form").addEventListener("submit", async (e) => {
 
 // ------------------------------------------------------------- navigation
 const LOADERS = { overview: loadOverview, communities: loadCommunities, posts: loadPosts, comments: loadComments,
-  scorecards: loadScorecards, content: loadContent, b2b: loadB2B };
+  scorecards: loadScorecards, content: loadContent, b2b: loadB2B, replies: loadReplies, leads: loadLeads };
 
 function activate(tab) {
   state.tab = tab;

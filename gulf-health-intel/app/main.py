@@ -1,12 +1,14 @@
 """FastAPI application: JSON API, CSV exports and the static dashboard."""
 from __future__ import annotations
 
+import base64
 import json
 import os
+import secrets
 from collections import Counter
 from datetime import datetime
 
-from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -20,6 +22,8 @@ from .config import settings
 from .connectors.base import FetchRequest, parse_dt
 from .connectors.tabular import TabularImport, load_records
 from .db import get_db
+from .engagement.api import public as engagement_public
+from .engagement.api import router as engagement_router
 from .export import EXPORTS
 from .ingest import GULF_COUNTRIES, run_connector
 from .models import (
@@ -43,8 +47,32 @@ from .text.lexicon import INTENT_LABELS
 
 STATIC = os.path.join(os.path.dirname(__file__), "static")
 
-app = FastAPI(title="Gulf Health Community Intelligence", version="0.1.0")
+app = FastAPI(title="Gulf Health Community Intelligence", version="0.2.0")
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
+
+# Public paths: the Scorecard people take. Everything else is the private dashboard.
+_PUBLIC_PREFIXES = ("/s/", "/api/public/")
+
+
+@app.middleware("http")
+async def basic_auth(request: Request, call_next):
+    """HTTP Basic auth for the dashboard and API when ADMIN_PASSWORD is set."""
+    if settings.admin_password and not request.url.path.startswith(_PUBLIC_PREFIXES):
+        ok = False
+        header = request.headers.get("authorization", "")
+        if header.lower().startswith("basic "):
+            try:
+                user, _, pwd = base64.b64decode(header[6:]).decode().partition(":")
+                ok = secrets.compare_digest(user, settings.admin_user) and secrets.compare_digest(pwd, settings.admin_password)
+            except (ValueError, UnicodeDecodeError):
+                ok = False
+        if not ok:
+            return Response(status_code=401, headers={"WWW-Authenticate": 'Basic realm="GHCI dashboard"'})
+    return await call_next(request)
+
+
+app.include_router(engagement_router)
+app.include_router(engagement_public)
 
 
 @app.get("/", include_in_schema=False)
@@ -66,6 +94,8 @@ def meta():
         "llm_models": {"fast": p.fast_model, "strong": p.strong_model} if p else None,
         "relevance_threshold": settings.relevance_threshold,
         "intents": INTENT_LABELS,
+        "public_base_url": settings.public_base_url,
+        "leads_enabled": bool(settings.admin_password),
     }
 
 

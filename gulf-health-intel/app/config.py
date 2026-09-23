@@ -34,6 +34,17 @@ class Settings:
     apify_token: str = field(default_factory=lambda: _env("APIFY_TOKEN"))
     relevance_threshold: int = field(default_factory=lambda: int(_env("RELEVANCE_THRESHOLD", "40")))
 
+    # Dashboard protection (HTTP Basic). Required before any lead data can be viewed.
+    admin_user: str = field(default_factory=lambda: _env("ADMIN_USER", "admin"))
+    admin_password: str = field(default_factory=lambda: _env("ADMIN_PASSWORD"))
+    # Public URL of this app, used to build Scorecard links inside suggested replies.
+    public_base_url: str = field(default_factory=lambda: _env("PUBLIC_BASE_URL", "http://localhost:8000").rstrip("/"))
+    brand_name: str = field(default_factory=lambda: _env("BRAND_NAME", "Health 360"))
+
+    # Reply queue (drafts only; a person posts every reply by hand)
+    reply_min_relevance: int = field(default_factory=lambda: int(_env("REPLY_MIN_RELEVANCE", "55")))
+    reply_daily_soft_limit: int = field(default_factory=lambda: int(_env("REPLY_DAILY_SOFT_LIMIT", "30")))
+
     def models_for(self, provider: str) -> tuple[str, str]:
         fast, strong = DEFAULT_MODELS.get(provider, ("", ""))
         return self.llm_fast_model or fast, self.llm_strong_model or strong

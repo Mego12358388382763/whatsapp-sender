@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wellness Scorecard</title>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f4f4f2; --card: #fcfcfb; --border: #e2e1dc; --text: #0b0b0b; --text2: #52514e; --muted: #77766f;
+  --accent: #1f7a5a; --accent-soft: #e6f2ec; --good: #1f7a3a; --warn: #9a6200; --priority: #b3261e;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --bg: #121211; --card: #1a1a19; --border: #2d2d2b; --text: #fff; --text2: #c3c2b7; --muted: #96958c;
+    --accent: #4fbf94; --accent-soft: #1d2f28; --good: #5cc07a; --warn: #e0a53a; --priority: #ef7a72;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #121211; --card: #1a1a19; --border: #2d2d2b; --text: #fff; --text2: #c3c2b7; --muted: #96958c;
+  --accent: #4fbf94; --accent-soft: #1d2f28; --good: #5cc07a; --warn: #e0a53a; --priority: #ef7a72;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 16px/1.6 system-ui, -apple-system, "Segoe UI", "Noto Sans Arabic", Tahoma, sans-serif; }
+.wrap { max-width: 640px; margin: 0 auto; padding: 16px; }
+header { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; }
+.brand { font-weight: 700; color: var(--accent); }
+.lang { background: none; border: 1px solid var(--border); color: var(--text2); border-radius: 99px; padding: 4px 12px; cursor: pointer; font: inherit; font-size: 14px; }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-bottom: 14px; }
+h1 { font-size: 22px; line-height: 1.35; margin: 0 0 8px; }
+p { margin: 0 0 10px; color: var(--text2); }
+.progress { position: sticky; top: 0; z-index: 2; background: var(--bg); padding: 8px 0; }
+.bar { height: 6px; background: var(--border); border-radius: 99px; overflow: hidden; }
+.bar > div { height: 100%; width: 0; background: var(--accent); transition: width .25s; }
+.count { font-size: 13px; color: var(--muted); margin-top: 4px; }
+.q { padding: 16px 0; border-bottom: 1px solid var(--border); }
+.q:last-child { border-bottom: 0; }
+.q-text { font-weight: 600; margin-bottom: 10px; }
+.opts { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.opts button { font: inherit; font-size: 13px; padding: 10px 2px; border-radius: 10px; border: 1px solid var(--border);
+  background: var(--card); color: var(--text); cursor: pointer; min-height: 44px; }
+.opts button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.primary { display: block; width: 100%; font: inherit; font-weight: 700; padding: 14px; border-radius: 12px; border: 0;
+  background: var(--accent); color: #fff; cursor: pointer; margin-top: 8px; }
+.primary:disabled { opacity: .45; cursor: not-allowed; }
+.secondary { display: block; width: 100%; background: none; border: 0; color: var(--text2); text-decoration: underline;
+  font: inherit; font-size: 14px; padding: 12px; cursor: pointer; }
+label { display: block; font-size: 14px; color: var(--text2); margin: 10px 0 4px; }
+input[type=text], input[type=tel], input[type=email] { width: 100%; font: inherit; padding: 12px; border-radius: 10px;
+  border: 1px solid var(--border); background: var(--card); color: var(--text); }
+.consent { display: flex; gap: 10px; align-items: flex-start; margin-top: 14px; font-size: 14px; color: var(--text2); }
+.consent input { margin-top: 5px; width: 18px; height: 18px; flex: none; }
+.err { color: var(--priority); font-size: 14px; min-height: 1.4em; margin-top: 6px; }
+.total { text-align: center; padding: 8px 0 4px; }
+.total .n { font-size: 48px; font-weight: 800; color: var(--accent); line-height: 1; }
+.total .l { color: var(--muted); font-size: 14px; }
+.area { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.area:last-child { border-bottom: 0; }
+.area-head { display: flex; justify-content: space-between; gap: 8px; font-weight: 600; }
+.meter { height: 8px; background: var(--border); border-radius: 99px; margin: 6px 0; overflow: hidden; }
+.meter > div { height: 100%; border-radius: 99px; }
+.lvl { font-size: 13px; font-weight: 600; }
+.lvl.good { color: var(--good); } .lvl.attention { color: var(--warn); } .lvl.priority { color: var(--priority); }
+.meter .good { background: var(--good); } .meter .attention { background: var(--warn); } .meter .priority { background: var(--priority); }
+.tip { font-size: 14px; color: var(--text2); margin: 0; }
+.disclaimer { font-size: 13px; color: var(--muted); }
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><span class="brand" id="brand"></span><button class="lang" id="lang-toggle"></button></header>
+
+  <section id="intro" class="card">
+    <h1 id="title"></h1>
+    <p id="intro-text"></p>
+    <p class="disclaimer" id="disclaimer"></p>
+    <button class="primary" id="start"></button>
+  </section>
+
+  <section id="quiz" class="hidden">
+    <div class="progress"><div class="bar"><div id="bar"></div></div><div class="count" id="count"></div></div>
+    <div class="card" id="questions"></div>
+    <button class="primary" id="to-contact" disabled></button>
+  </section>
+
+  <section id="contact" class="card hidden">
+    <h1 id="c-title"></h1>
+    <p id="c-text"></p>
+    <form id="lead-form" novalidate>
+      <label for="name" id="l-name"></label><input id="name" type="text" autocomplete="given-name" maxlength="120">
+      <label for="whatsapp" id="l-wa"></label><input id="whatsapp" type="tel" autocomplete="tel" inputmode="tel" maxlength="40" dir="ltr" placeholder="+966 5x xxx xxxx">
+      <div class="consent"><input id="consent" type="checkbox"><span id="consent-text"></span></div>
+      <div class="err" id="err" role="alert"></div>
+      <button class="primary" type="submit" id="send"></button>
+    </form>
+    <button class="secondary" id="skip"></button>
+  </section>
+
+  <section id="results" class="hidden">
+    <div class="card">
+      <div class="total"><div class="n" id="total"></div><div class="l" id="total-l"></div></div>
+      <p id="r-note" style="text-align:center"></p>
+    </div>
+    <div class="card" id="areas"></div>
+    <p class="disclaimer" id="disclaimer2"></p>
+  </section>
+</div>
+
+<script>
+const T = {
+  ar: { start: "ابدأ التقييم", next: "عرض النتيجة", of: "من", cTitle: "نتيجتك جاهزة 🎉",
+        cText: "تبغى نرسل لك نتيجتك مع نصائح عملية على الواتساب؟ (اختياري)",
+        name: "الاسم", wa: "رقم الواتساب", send: "أرسل لي النتيجة", skip: "عرض النتيجة فقط بدون مشاركة بياناتي",
+        consent: "أوافق على أن يتواصل معي {brand} عبر الواتساب بخصوص نتيجتي ونصائح وعروض صحية. أقدر ألغي موافقتي وأطلب حذف بياناتي في أي وقت.",
+        needConsent: "لازم توافق على التواصل عشان نحفظ بياناتك، أو اختر عرض النتيجة فقط.",
+        needWa: "اكتب رقم واتساب صحيح.", total: "مؤشر التوازن العام (من ١٠٠)",
+        note: "الأرقام الأقل تعني جوانب تستاهل اهتمام أكثر.", lvl: { good: "ممتاز", attention: "يحتاج اهتمام", priority: "أولوية" },
+        toggle: "English", error: "صار خطأ، حاول مرة ثانية." },
+  en: { start: "Start the assessment", next: "See my result", of: "of", cTitle: "Your result is ready 🎉",
+        cText: "Would you like your result and practical tips sent on WhatsApp? (optional)",
+        name: "Name", wa: "WhatsApp number", send: "Send me my result", skip: "Just show my result without sharing my details",
+        consent: "I agree that {brand} may contact me on WhatsApp about my result, wellness tips and offers. I can withdraw consent and ask for my data to be deleted at any time.",
+        needConsent: "Please tick the consent box to save your details, or choose to just see your result.",
+        needWa: "Please enter a valid WhatsApp number.", total: "Overall balance score (out of 100)",
+        note: "Lower scores highlight areas that may deserve more attention.", lvl: { good: "Looking good", attention: "Worth attention", priority: "Priority area" },
+        toggle: "العربية", error: "Something went wrong, please try again." },
+};
+const $ = (s) => document.querySelector(s);
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const key = location.pathname.split("/").filter(Boolean)[1];
+const params = new URLSearchParams(location.search);
+let lang = params.get("lang") === "en" ? "en" : "ar";
+let def = null;
+const answers = {};
+
+async function load() {
+  const r = await fetch(`/api/public/scorecards/${encodeURIComponent(key)}?lang=${lang}`);
+  def = await r.json();
+  const t = T[lang];
+  document.documentElement.lang = lang;
+  document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+  document.title = def.title;
+  $("#brand").textContent = def.brand;
+  $("#lang-toggle").textContent = t.toggle;
+  $("#title").textContent = def.title;
+  $("#intro-text").textContent = def.intro;
+  $("#disclaimer").textContent = def.disclaimer;
+  $("#disclaimer2").textContent = def.disclaimer;
+  $("#start").textContent = t.start;
+  $("#to-contact").textContent = t.next;
+  $("#c-title").textContent = t.cTitle;
+  $("#c-text").textContent = t.cText;
+  $("#l-name").textContent = t.name;
+  $("#l-wa").textContent = t.wa;
+  $("#send").textContent = t.send;
+  $("#skip").textContent = t.skip;
+  $("#consent-text").textContent = t.consent.replace("{brand}", def.brand);
+  $("#questions").innerHTML = def.questions.map((q) => `
+    <div class="q" data-q="${q.id}">
+      <div class="q-text">${esc(q.text)}</div>
+      <div class="opts" role="group" aria-label="${esc(q.text)}">
+        ${def.scale.map((label, v) => `<button type="button" data-v="${v}" aria-pressed="${answers[q.id] === v}">${esc(label)}</button>`).join("")}
+      </div>
+    </div>`).join("");
+  progress();
+}
+
+function progress() {
+  const done = Object.keys(answers).length, n = def.questions.length;
+  $("#bar").style.width = `${(100 * done) / n}%`;
+  $("#count").textContent = `${done} ${T[lang].of} ${n}`;
+  $("#to-contact").disabled = done < n;
+}
+
+$("#questions").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-v]");
+  if (!b) return;
+  const q = b.closest(".q");
+  answers[q.dataset.q] = +b.dataset.v;
+  q.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+  progress();
+  const next = q.nextElementSibling;
+  if (next && !(next.dataset.q in answers)) next.scrollIntoView({ behavior: "smooth", block: "center" });
+});
+$("#lang-toggle").addEventListener("click", () => { lang = lang === "ar" ? "en" : "ar"; load(); });
+$("#start").addEventListener("click", () => { $("#intro").classList.add("hidden"); $("#quiz").classList.remove("hidden"); scrollTo(0, 0); });
+$("#to-contact").addEventListener("click", () => { $("#quiz").classList.add("hidden"); $("#contact").classList.remove("hidden"); scrollTo(0, 0); });
+
+async function submit(withContact) {
+  const t = T[lang];
+  const body = { answers, lang, utm_source: params.get("utm_source"), utm_campaign: params.get("utm_campaign") };
+  if (withContact) {
+    const wa = $("#whatsapp").value.trim();
+    if (!/^\+?[0-9 ()-]{8,20}$/.test(wa)) { $("#err").textContent = t.needWa; return; }
+    if (!$("#consent").checked) { $("#err").textContent = t.needConsent; return; }
+    Object.assign(body, { name: $("#name").value.trim() || null, whatsapp: wa, consent: true,
+                          consent_text: $("#consent-text").textContent });
+  }
+  $("#err").textContent = "";
+  const r = await fetch(`/api/public/scorecards/${encodeURIComponent(key)}/submit`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  if (!r.ok) { $("#err").textContent = t.error; return; }
+  show(await r.json());
+}
+
+function show(res) {
+  const t = T[lang];
+  $("#contact").classList.add("hidden");
+  $("#results").classList.remove("hidden");
+  $("#total").textContent = res.total;
+  $("#total-l").textContent = t.total;
+  $("#r-note").textContent = t.note;
+  $("#areas").innerHTML = res.areas.map((a) => `
+    <div class="area">
+      <div class="area-head"><span>${esc(a.name)}</span><span class="lvl ${a.level}">${esc(t.lvl[a.level])} · ${a.score}</span></div>
+      <div class="meter"><div class="${a.level}" style="width:${a.score}%"></div></div>
+      <p class="tip">${esc(a.tip)}</p>
+    </div>`).join("");
+  scrollTo(0, 0);
+}
+
+$("#lead-form").addEventListener("submit", (e) => { e.preventDefault(); submit(true); });
+$("#skip").addEventListener("click", () => submit(false));
+load();
+</script>
+</body>
+</html>

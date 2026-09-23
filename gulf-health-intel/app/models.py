@@ -251,6 +251,65 @@ class LLMCache(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 
+# ------------------------------------------------------------------ ENGAGEMENT
+
+
+class ReplyQueueItem(Base):
+    """A public question worth answering in-thread. Points at a post, never at a person.
+
+    The tool only drafts replies. A person reviews, edits and posts each one
+    manually on the platform.
+    """
+
+    __tablename__ = "reply_queue"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    comment_id: Mapped[int] = mapped_column(ForeignKey("comments.id", ondelete="CASCADE"), unique=True)
+    platform: Mapped[str] = mapped_column(String(40))
+    topic_id: Mapped[int | None] = mapped_column(ForeignKey("topics.id"), nullable=True)
+    intent: Mapped[str] = mapped_column(String(40))
+    relevance: Mapped[int] = mapped_column(Integer, default=0)
+    language: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    dialect: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    scorecard_key: Mapped[str] = mapped_column(String(30))
+    drafts: Mapped[list] = mapped_column(JSON, default=list)
+    drafts_method: Mapped[str] = mapped_column(String(20), default="template")
+    # pending | copied (opened for manual posting) | posted (confirmed by a person) | skipped
+    status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
+    final_reply: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    acted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
+    comment: Mapped[Comment] = relationship()
+
+
+class ScorecardSubmission(Base):
+    """A completed wellness Scorecard.
+
+    Contact details exist ONLY when the person typed them in and ticked the
+    consent box. Without consent the submission is anonymous. There is no link
+    to any collected comment: people who arrive from a reply are counted only
+    by campaign/topic tags.
+    """
+
+    __tablename__ = "scorecard_submissions"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    scorecard_key: Mapped[str] = mapped_column(String(30), index=True)
+    language: Mapped[str] = mapped_column(String(5), default="ar")
+    answers: Mapped[dict] = mapped_column(JSON, default=dict)
+    area_scores: Mapped[dict] = mapped_column(JSON, default=dict)
+    total_score: Mapped[int] = mapped_column(Integer, default=0)
+    contact_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    contact_whatsapp: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    contact_email: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    country: Mapped[str | None] = mapped_column(String(2), nullable=True)
+    consent: Mapped[bool] = mapped_column(Boolean, default=False)
+    consent_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    consent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    utm_source: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    utm_campaign: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    lead_status: Mapped[str] = mapped_column(String(20), default="new")  # new | contacted | converted | closed
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, index=True)
+
+
 # --------------------------------------------------------------------------- B2B
 
 
