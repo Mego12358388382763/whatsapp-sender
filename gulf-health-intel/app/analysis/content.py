@@ -41,7 +41,7 @@ def _templates(noun: str, noun_ar: str, phrases: list[str], questions: list[str]
     p = (phrases + [noun] * 3)[:3]
     reels = [
         f"3 everyday habits that quietly affect your {noun}",
-        f'"{p[0]}": what people in the Gulf say most, and what to look at first',
+        f'What people in the Gulf say most ("{p[0]}") and what to look at first',
         f"Morning vs evening routine: small changes that support {noun}",
         f"Myth vs fact: common beliefs about {noun}",
         f"Ramadan & summer heat: adjusting routines for better {noun}",
@@ -52,12 +52,12 @@ def _templates(noun: str, noun_ar: str, phrases: list[str], questions: list[str]
         f"{noun_ar}: 3 عادات يومية تستاهل تنتبه لها",
     ]
     hooks = [
-        f'"{p[0]}"? You\'re not the only one. Here\'s what often sits behind it.',
+        f'You\'re not the only one who says "{p[0]}". Here\'s what often sits behind it.',
         f"If {noun} feels harder than it should, this is for you.",
         f"Nobody talks about how routine shapes {noun}.",
         f"Before you try another supplement for {noun}, watch this.",
         f"The #1 question we see about {noun} in Gulf communities…",
-        f'"{p[1]}": let\'s talk about it.',
+        f'Let\'s talk about "{p[1]}".',
         f"3 signs your lifestyle may be affecting your {noun}.",
         f"Stop guessing about {noun}. Start noticing these patterns.",
         f"كثير يقولون \"{p[2]}\"… خلنا نفهم الموضوع",

@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gulf Health Community Intelligence</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <h1>Gulf Health Community Intelligence</h1>
+    <p class="sub">Anonymised audience research from public community discussions. Ranks topics, posts and communities, never people.</p>
+  </div>
+  <div class="filters" role="group" aria-label="Filters">
+    <label>Country <select id="f-country"><option value="">All Gulf</option></select></label>
+    <label>Platform <select id="f-platform"><option value="">All</option></select></label>
+    <span id="llm-badge" class="badge"></span>
+  </div>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button data-tab="overview" class="active">Overview</button>
+  <button data-tab="communities">Communities</button>
+  <button data-tab="posts">Posts</button>
+  <button data-tab="comments">Comment explorer</button>
+  <button data-tab="scorecards">Scorecards</button>
+  <button data-tab="content">Content ideas</button>
+  <button data-tab="search">Search</button>
+  <button data-tab="ingest">Add data</button>
+  <button data-tab="b2b">B2B partners</button>
+  <button data-tab="export">Export</button>
+</nav>
+
+<main>
+  <!-- OVERVIEW -->
+  <section id="tab-overview" class="tab active">
+    <div class="tiles" id="tiles"></div>
+    <div class="card">
+      <div class="card-head">
+        <h2>Top problems by discussion volume</h2>
+        <button class="link" id="toggle-table" aria-pressed="false">Show table</button>
+      </div>
+      <p class="muted small">Relevant comments that mention each theme (a comment can mention several). Hover a bar for detail.</p>
+      <div id="bars" class="bars"></div>
+      <div id="bars-table" hidden></div>
+    </div>
+    <div class="card"><h2>Recent ingestion runs</h2><div id="runs"></div></div>
+  </section>
+
+  <!-- COMMUNITIES -->
+  <section id="tab-communities" class="tab">
+    <div class="card"><h2>Top communities</h2>
+      <p class="muted small">Opportunity score (0–100) combines relevant-discussion share, volume, help/question share, engagement and topic growth. It ranks communities, not individuals.</p>
+      <div id="communities"></div></div>
+  </section>
+
+  <!-- POSTS -->
+  <section id="tab-posts" class="tab">
+    <div class="card"><h2>Top posts by discussion quality</h2><div id="posts"></div></div>
+  </section>
+
+  <!-- COMMENTS -->
+  <section id="tab-comments" class="tab">
+    <div class="card">
+      <h2>Comment explorer</h2>
+      <p class="muted small">Anonymous by design: commenter identity is never collected or stored.</p>
+      <div class="row wrap">
+        <label>Topic <select id="c-topic"><option value="">Any</option></select></label>
+        <label>Intent <select id="c-intent"><option value="">Any</option></select></label>
+        <label>Min relevance <input id="c-min" type="number" min="0" max="100" value="40" style="width:5em"></label>
+        <label>Contains <input id="c-q" type="search" placeholder="text…"></label>
+        <label class="check"><input id="c-questions" type="checkbox"> Questions only</label>
+        <button id="c-go">Apply</button>
+      </div>
+      <div id="comments"></div>
+      <div class="row"><button id="c-prev">‹ Prev</button><span id="c-page" class="muted small"></span><button id="c-next">Next ›</button></div>
+    </div>
+  </section>
+
+  <!-- SCORECARDS -->
+  <section id="tab-scorecards" class="tab">
+    <div class="card"><h2>Scorecard opportunities</h2>
+      <p class="muted small">General wellness self-assessments suggested by discussion clusters. They are educational and opt-in, never diagnostic.</p>
+      <div id="scorecards" class="grid"></div></div>
+  </section>
+
+  <!-- CONTENT -->
+  <section id="tab-content" class="tab">
+    <div class="card"><h2>Content intelligence</h2>
+      <div class="row"><label>Theme <select id="ci-topic"></select></label></div>
+      <div id="content"></div></div>
+  </section>
+
+  <!-- SEARCH -->
+  <section id="tab-search" class="tab">
+    <div class="card">
+      <h2>Search</h2>
+      <form id="search-form" class="row">
+        <input id="search-q" type="search" placeholder='e.g. "fatigue Saudi Arabia", "burnout Riyadh", "gut health Dubai"' style="flex:1">
+        <button type="submit">Search</button>
+      </form>
+      <div class="row wrap small" id="search-examples"></div>
+      <div id="search-results"></div>
+    </div>
+  </section>
+
+  <!-- INGEST -->
+  <section id="tab-ingest" class="tab">
+    <div class="card">
+      <h2>Collect from URLs or keywords</h2>
+      <p class="muted small">Uses official APIs where configured (YouTube, Reddit, X) or a configured data provider. Instagram, Facebook and TikTok need provider exports: use file import below.</p>
+      <form id="ingest-form" class="form">
+        <label>URLs (page, profile, channel, subreddit or post; one per line)<textarea id="i-urls" rows="4"></textarea></label>
+        <label>Keywords (comma-separated)<input id="i-keywords" placeholder="تعب, fatigue, نوم"></label>
+        <div class="row wrap">
+          <label>Country <select id="i-country"><option value="">—</option></select></label>
+          <label>City <input id="i-city" placeholder="Riyadh"></label>
+          <label>Platform <select id="i-platform"><option value="">Auto</option></select></label>
+          <label>From <input id="i-from" type="date"></label>
+          <label>To <input id="i-to" type="date"></label>
+          <label>Max posts <input id="i-maxposts" type="number" value="20" style="width:5em"></label>
+        </div>
+        <button type="submit">Collect &amp; analyse</button>
+      </form>
+      <pre id="ingest-out" class="out" hidden></pre>
+    </div>
+    <div class="card">
+      <h2>Import CSV / JSON</h2>
+      <p class="muted small">One row per comment, with columns such as <code>post_url, community_name, country, comment_text, comment_date, comment_likes</code>. Provider exports (Apify and similar) are mapped automatically. Author and username columns are discarded on import.</p>
+      <form id="file-form" class="form">
+        <input id="file" type="file" accept=".csv,.json,.jsonl,.ndjson" required>
+        <div class="row wrap">
+          <label>Platform <select id="u-platform"><option value="">From file / URL</option></select></label>
+          <label>Community name <input id="u-community" placeholder="(if not in file)"></label>
+          <label>Country <select id="u-country"><option value="">From file</option></select></label>
+          <label>City <input id="u-city"></label>
+        </div>
+        <button type="submit">Import &amp; analyse</button>
+      </form>
+      <pre id="file-out" class="out" hidden></pre>
+    </div>
+    <div class="card">
+      <h2>Re-run analysis</h2>
+      <div class="row"><button id="reanalyze">Re-analyse everything</button><span class="muted small">Re-classifies all comments. Cached LLM results are reused, so this is cheap.</span></div>
+      <pre id="analyze-out" class="out" hidden></pre>
+    </div>
+  </section>
+
+  <!-- B2B -->
+  <section id="tab-b2b" class="tab">
+    <div class="card">
+      <h2>B2B partnership prospects</h2>
+      <p class="muted small">Public businesses and professional accounts only (clinics, coaches, brands). Stored separately, with no link to any comment or health data.</p>
+      <form id="b2b-form" class="row wrap">
+        <input id="b-name" placeholder="Business name" required>
+        <input id="b-category" placeholder="Category">
+        <select id="b-country"><option value="">Country</option></select>
+        <input id="b-email" type="email" placeholder="Public business email">
+        <input id="b-website" placeholder="Website">
+        <input id="b-social" placeholder="Social profiles (| separated)">
+        <input id="b-rel" type="number" min="0" max="100" placeholder="Relevance 0-100" style="width:9em">
+        <button type="submit">Add</button>
+      </form>
+      <div id="b2b"></div>
+    </div>
+  </section>
+
+  <!-- EXPORT -->
+  <section id="tab-export" class="tab">
+    <div class="card"><h2>Export CSV</h2><ul class="exports">
+      <li><a href="/api/export/communities.csv">Community analysis</a></li>
+      <li><a href="/api/export/posts.csv">Post analysis</a></li>
+      <li><a href="/api/export/comments.csv">Anonymous comment intelligence</a></li>
+      <li><a href="/api/export/topics.csv">Topic report</a></li>
+      <li><a href="/api/export/scorecards.csv">Scorecard opportunities</a></li>
+      <li><a href="/api/export/content_ideas.csv">Content ideas</a></li>
+      <li><a href="/api/export/b2b.csv">B2B partnership prospects</a></li>
+    </ul></div>
+  </section>
+</main>
+
+<div id="tooltip" class="tooltip" role="tooltip" hidden></div>
+<script src="/static/app.js"></script>
+</body>
+</html>
